@@ -1,0 +1,339 @@
+************************************************************************
+*  CASE ASSEMBLY_2N                                                    *
+*  361-group ENDF_VII.1 DRAGLIB LIBRARY                                *
+*  DISTRIBUTED SELF-SHIELDING                                          *
+*  Author: Ariful Islam                                                *
+************************************************************************
+
+! STRUCTURES and MODULES
+
+LINKED_LIST GEOM TRACK_SS TRACK LIBRARY LIBRARY2 SYS FLUX
+  StepList BURNUP EDIOBJ ;
+
+SEQ_ASCII UOX_TBH ;
+SEQ_BINARY TF_EXC ;
+
+SEQ_ASCII FIG.ps :: FILE './PIN_FIG.ps' ;
+SEQ_ASCII GeoMix_G1 :: FILE './GeoMix_G1.ps' ;
+SEQ_ASCII _BURN :: FILE './_BURN_rowland.txt' ;
+SEQ_ASCII _LIBR :: FILE './_LIB_rowland.txt' ;
+SEQ_ASCII _EDIT :: FILE './_EDIT_rowland.txt' ;
+
+MODULE LIB: GEO: SYBILT: G2S: SALT: MCCGT: MAC: USS:
+  ASM: FLU: DELETE: UTL: EVO: GREP: PSP:
+  EDI: END: ;
+
+INTEGER COMB0101 COMB0105 COMB0106 COMB0107 GAP2 CLAD3 MODE4 :=
+        1 5 6 7 2 3 4 ; !  DISTRIBUTED SELF-SHIELDING FUEL
+
+INTEGER IFBA WABA IFBAFUEL1 IFBAFUEL2 IFBAFUEL3 IFBAFUEL4 :=
+        8 9 10 11 12 13 ;
+
+REAL N_Zr90       N_Zr91      N_Zr92       N_Zr94       N_Zr96  :=
+     2.18865E-02 4.77292E-03 7.29551E-03 7.39335E-03 1.19110E-03 ;
+
+INTEGER an2d := 12 ;  ! ANGULAR QUADRATURE PARAMETER
+REAL densur := 24.0 ; ! DENSITY OF INTEGRATION LINES CM^-1
+
+* FUEL
+
+REAL FR1 FR5 FR6 FR7 ;
+
+EVALUATE FR7 := 0.4096 ;
+EVALUATE FR1 := 0.1 SQRT FR7 * ;
+EVALUATE FR5 := 0.8 SQRT FR7 * ;
+EVALUATE FR6 := 0.95 SQRT FR7 * ;
+
+REAL Kinf1 Keff1 ;
+
+! GEOMETRY
+
+GEOM := GEO: :: CAR2D 10 10
+X- DIAG X+ REFL Y- SYME Y+ DIAG
+
+*        9  10  11  12  13  14  15  16 17 DUMMY
+*--------------------------------------------------------
+CELL     C1 C3  C3  C4  C3  C3  C4  C3 C2 C5
+            C2  C2  C3  C2  C2  C3  C2 C2 C5
+                C2  C3  C2  C2  C3  C2 C2 C5
+                    C1  C3  C3  C4  C3 C2 C5
+                        C2  C3  C3  C2 C2 C5
+                            C4  C3  C2 C2 C5
+                                C2  C2 C2 C5
+                                    C2 C2 C5
+                                       C3 C5
+                                          C6
+
+::: C1 := GEO: CARCEL 2
+    RADIUS 0.0 0.5610 0.6020
+    MIX <<MODE4>> <<CLAD3>> <<MODE4>>
+    MESHX 0.0 1.2600 MESHY 0.0 1.2600 ;
+::: C2 := GEO: CARCEL 6
+    RADIUS 0.0 <<FR1>> <<FR5>> <<FR6>> <<FR7>> 0.4180 0.4750
+    MIX <<COMB0101>>  <<COMB0105>> <<COMB0106>> <<COMB0107>>
+    <<GAP2>> <<CLAD3>> <<MODE4>>
+    MESHX 0.0 1.2600 MESHY 0.0 1.2600 ;
+::: C3 := GEO: CARCEL 7
+    RADIUS 0.0 <<FR1>> <<FR5>> <<FR6>> <<FR7>> 0.4106 0.4180 0.4750
+    MIX <<IFBAFUEL1>> <<IFBAFUEL2>> <<IFBAFUEL3>> <<IFBAFUEL4>>
+    <<IFBA>> <<GAP2>> <<CLAD3>> <<MODE4>>
+    MESHX 0.0 1.2600 MESHY 0.0 1.2600 ;
+::: C4 := GEO: CARCEL 8
+    RADIUS 0.0 0.2860 0.3390 0.3530 0.4040 0.4180 0.4840 0.5610 0.6020
+    MIX <<MODE4>> <<CLAD3>> <<GAP2>> <<WABA>> <<GAP2>>
+        <<CLAD3>> <<MODE4>> <<CLAD3>> <<MODE4>>
+        MESHX 0.0 1.2600 MESHY 0.0 1.2600 ;
+::: C5 := GEO: CAR2D 1 1
+    MESHX 1.2600 1.302 MESHY 0.0 1.2600
+    MIX <<MODE4>> ;
+::: C6 := GEO: CAR2D 1 1
+    MESHX 1.2600 1.302 MESHY 1.2600 1.302
+    MIX <<MODE4>> ;
+;
+
+! TRACKING
+
+TRACK_SS := SYBILT: GEOM ::
+  TITLE 'ASSEMBLY_2N BENCHMARK'
+  MAXR 1000 QUA2 24 5 DP01 MAXZ 1000000 ;
+
+* PRINT GEOMETRY
+UOX_TBH FIG.ps := G2S: GEOM :: DRAWNOD ;
+GeoMix_G1 := PSP: GEOM :: FILL RGB TYPE MIXTURE ;
+
+TRACK TF_EXC := SALT: UOX_TBH ::
+  EDIT 3
+  ALLG
+  TSPC EQW2 <<an2d>> <<densur>> REND
+;
+
+TRACK := MCCGT: TRACK TF_EXC ::
+  CACB 4 AAC 80 TMT EPSI 1E-5 MCU 10000
+;
+
+! LIBRARY
+
+LIBRARY := LIB: ::
+  EDIT 1
+  NMIX 13    
+  PT
+  CTRA APOL ! APOLLO TYPE TRANSPORT CORRECTION
+  ANIS 2
+  ADED 4 NELAS N4N N2N N3N
+  CALENDF 3 PT      ! CALENDF TYPE PROBABILITY TABLES
+
+  DEPL LIB: DRAGON FIL: DLIB_7R1_361
+
+  MIXS LIB: DRAGON FIL: DLIB_7R1_361
+
+  * FUEL MAT
+  MIX <<COMB0101>> 900.0
+    O16     = O16    4.57642E-02
+    U234    = U234   6.11864E-06 1 IRSET PT 1
+    U235    = U235   7.18132E-04 1 IRSET PT 1
+    U236    = U236   3.29861E-06 1 IRSET PT 1
+    U238    = U238   2.21546E-02 1 IRSET PT 1
+  MIX <<COMB0105>> COMB <<COMB0101>> 1.0
+  MIX <<COMB0106>> COMB <<COMB0101>> 1.0
+  MIX <<COMB0107>> COMB <<COMB0101>> 1.0
+
+  * IFBAFUEL MAT
+  MIX <<IFBAFUEL1>> 900.0
+    O16      = O16   4.57642E-02
+    U234     = U234  6.11864E-06 IRSET PT 1
+    U235     = U235  7.18132E-04 IRSET PT 1
+    U236     = U236  3.29861E-06 IRSET PT 1
+    U238     = U238  2.21546E-02 IRSET PT 1
+  MIX <<IFBAFUEL2>> COMB <<IFBAFUEL1>> 1.0
+  MIX <<IFBAFUEL3>> COMB <<IFBAFUEL1>> 1.0
+  MIX <<IFBAFUEL4>> COMB <<IFBAFUEL1>> 1.0
+
+  * IFBA MAT
+  MIX <<IFBA>> 600.0 NOEV
+  B10    = B10 2.16410E-02
+  B11    = B11 1.96824E-02
+  Zr90   = Zr90  1.06304E-02 2 IRSET PT 1
+  Zr91   = Zr91  2.31824E-03 2 IRSET PT 1
+  Zr92   = Zr92  3.54348E-03 2 IRSET PT 1
+  Zr94   = Zr94  3.59100E-03
+  Zr96   = Zr96  5.78528E-04
+
+  * WABA MAT
+  MIX <<WABA>> 600.0 NOEV
+  B10    = B10 2.98553E-03
+  B11    = B11 1.21192E-02
+  C0     = C0  3.77001E-03
+  O16    = O16 5.85563E-02
+  Al27   = Al27 3.90223E-02
+
+  * GAP MAT
+  MIX <<GAP2>> 600.0 NOEV
+    He4     = He4    2.68714E-5
+  * CLAD MAT
+  MIX <<CLAD3>> 600.0 NOEV
+    Zr90    = Zr90   <<N_Zr90>> 2 IRSET PT 1
+    Zr91    = Zr91   <<N_Zr91>> 2 IRSET PT 1
+    Zr92    = Zr92   <<N_Zr92>> 2 IRSET PT 1
+    Zr94    = Zr94   <<N_Zr94>>
+    Zr96    = Zr96   <<N_Zr96>>
+    Sn112   = Sn112   4.68066E-06
+    Sn114   = Sn114   3.18478E-06
+    Sn115   = Sn115   1.64064E-06
+    Sn116   = Sn116   7.01616E-05
+    Sn117   = Sn117   3.70592E-05
+    Sn118   = Sn118   1.16872E-04
+    Sn119   = Sn119   4.14504E-05
+    Sn120   = Sn120   1.57212E-04
+    Sn122   = Sn122   2.23417E-05
+    Sn124   = Sn124   2.79392E-05
+    Fe54    = Fe54    8.68307E-06
+    Fe56    = Fe56    1.36306E-04
+    Fe57    = Fe57    1.36306E-04
+    Fe58    = Fe58    4.18926E-07
+    Cr50    = Cr50    3.30121E-06
+    Cr52    = Cr52    6.36606E-05
+    Cr53    = Cr53    7.21860E-06
+    Cr54    = Cr54    1.79686E-06
+    Hf174   = Hf174   3.54138E-09
+    Hf176   = Hf176   1.16423E-07
+    Hf177   = Hf177   4.11686E-07
+    Hf178   = Hf178   6.03806E-07
+    Hf179   = Hf179   3.01460E-07
+    Hf180   = Hf180   7.76449E-07
+
+  * BMOD MAT
+  MIX <<MODE4>> 600.0 NOEV
+    H1      = H1_H2O 4.67505E-02
+    O16     = O16    2.33753E-02
+    B10     = B10    1.00874E-05
+    B11     = B11    4.06030E-05
+;
+
+! SELF-SHIELDING & FLUX
+
+LIBRARY2 := USS: LIBRARY TRACK_SS :: EDIT 1 TRAN PASS 3 GRMIN 52 ;
+SYS := ASM: LIBRARY2 TRACK TF_EXC :: ARM EDIT 1 ;
+FLUX := FLU: SYS LIBRARY2 TRACK TF_EXC :: EDIT 1 TYPE K ;
+
+! EDIT
+
+EDIOBJ := EDI: FLUX LIBRARY2 TRACK ::
+  EDIT 5
+  MICR 11 U235 U238 Pu238 Pu239
+    Pu240 Pu241 Pu242 Am241 Am243
+    Cm242 Cm244
+  MERG MIX
+  COND
+  SAVE ON COND2
+;
+
+! BURN UP
+
+REAL    Norm_f2 := 40.0 ; ! POWER NORM 40W/G
+INTEGER istep :=  1 ;
+INTEGER nstep := 20 ;
+INTEGER nauto := 20 ;
+INTEGER iauto :=  1 ;
+INTEGER valstep valauto ;
+REAL    evobeg evoend step2 stepauto ;
+
+StepList := UTL: :: CREA 'ListBU' <<nstep>> =
+     10.00      250.00     500.00    1000.00   2000.00
+   4000.00     8000.00   12000.00   16000.00  20000.00
+  24000.00    28000.00   32000.00   36000.00  40000.00
+  44000.00    48000.00   52000.00   56000.00  60000.00
+;
+
+StepList := UTL: StepList :: CREA 'ListAutop' <<nauto>> =
+     10.00      250.00     500.00    1000.00   2000.00
+   4000.00     8000.00   12000.00   16000.00  20000.00
+  24000.00    28000.00   32000.00   36000.00  40000.00
+  44000.00    48000.00   52000.00   56000.00  60000.00
+;
+
+GREP: FLUX :: GETVAL 'K-EFFECTIVE  ' 1 1 1 >>Keff1<< ;
+ECHO "+++ Burnup=" 0.0 " Keff=" Keff1 ;
+
+EVALUATE evoend := 0. ;
+WHILE istep nstep <= DO
+
+  GREP: StepList :: GETVAL 'ListBU' <<istep>> >>step2<< ;
+
+  EVALUATE evobeg := evoend ;
+  EVALUATE evoend := step2 Norm_f2 / ;
+
+  ECHO "BURNUP step" istep "between" evobeg "and" evoend "day:" ;
+
+  IF istep 1 = THEN
+    BURNUP LIBRARY2 := EVO: LIBRARY2 FLUX TRACK ::
+      EDIT 2
+      DEPL <<evobeg>> <<evoend>> DAY POWR <<Norm_f2>>
+      KAPS EXTR NSAT NODI
+      GLOB
+    ;
+
+  ELSE
+    BURNUP LIBRARY2 := EVO: BURNUP LIBRARY2 FLUX TRACK ::
+      EDIT 2
+      DEPL <<evobeg>> <<evoend>> DAY POWR <<Norm_f2>>
+      KAPS EXTR NSAT NODI
+      GLOB
+    ;
+
+  ENDIF ;
+
+  GREP: StepList :: GETVAL 'ListAutop' <<iauto>> >>stepauto<< ;
+  EVALUATE valstep := step2 R_TO_I ;
+  EVALUATE valauto := stepauto R_TO_I ;
+
+  IF valstep valauto = THEN
+
+    ECHO "StepAuto:" stepauto "MWD/KgU" ;
+    ECHO "Self-shielding calculation" istep "at" evoend "DAY:" ;
+
+    LIBRARY2 := USS: LIBRARY LIBRARY2 TRACK_SS ::
+      EDIT 1 TRAN PASS 3 GRMIN 52 ;
+
+  ENDIF ;
+
+  IF iauto nauto < THEN
+    EVALUATE iauto := iauto 1 + ;
+  ENDIF ;
+
+  ECHO "step2=" step2 "evoend=" evoend ;
+
+  SYS := DELETE: SYS ;
+  SYS := ASM: LIBRARY2 TRACK TF_EXC :: ARM EDIT 1 ;
+
+  FLUX := FLU: FLUX SYS LIBRARY2 TRACK TF_EXC :: EDIT 1 TYPE K ;
+
+  EDIOBJ := EDI: EDIOBJ FLUX LIBRARY2 TRACK ::
+    EDIT 5
+    MICR 11 U235 U238 Pu238 Pu239
+      Pu240 Pu241 Pu242 Am241 Am243
+      Cm242 Cm244
+    MERG MIX
+    COND
+    SAVE ON COND2
+  ;
+
+  GREP: FLUX :: GETVAL 'K-INFINITY  ' 1 1 1 >>Kinf1<<
+    GETVAL 'K-EFFECTIVE ' 1 1 1 >>Keff1<< ;
+
+  ECHO "+++ Burnup=" step2 " Keff=" Keff1 ;
+
+  BURNUP LIBRARY2 := EVO: BURNUP LIBRARY2 FLUX TRACK :: EDIT 2
+    SAVE <<evoend>> DAY POWR <<Norm_f2>> ;
+
+  EVALUATE istep := istep 1 + ;
+
+ENDWHILE ;
+
+_BURN := BURNUP ;
+_LIBR := LIBRARY2 ;
+_EDIT := EDIOBJ ;
+
+ECHO "RUN completed" ;
+
+END: ;
+QUIT .
